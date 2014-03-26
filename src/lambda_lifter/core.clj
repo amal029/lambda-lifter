@@ -21,13 +21,13 @@
      (str (s/map-str
            #(match [%]
                    [{:robot _}] "R"
-                   [ {:rock  _}] "*"
-                   [ {:clift _}] "L"
-                   [ {:olift _}] "O"
-                   [ {:lambda _}] "\\"
-                   [ {:earth _}] "."
-                   [ {:space _}] " "
-                   [ {:wall _}] "#") line) "\n"))mm))
+                   [{:rock  _}] "*"
+                   [{:clift _}] "L"
+                   [{:olift _}] "O"
+                   [{:lambda _}] "\\"
+                   [{:earth _}] "."
+                   [{:space _}] " "
+                   [{:wall _}] "#") line) "\n"))mm))
 
 (defn- consume-map [map]
   (let 
