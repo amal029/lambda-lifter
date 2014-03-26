@@ -8,7 +8,7 @@ FIXME: The game is still not complete.
 
 ### To play
 
-There are maps in the test folder. Just run lein run -- `pwd`/map<\#> in the test folder
+There are maps in the test folder. Just run lein run -- ``pwd``/map<\#> in the test folder
 
 ## License
 
