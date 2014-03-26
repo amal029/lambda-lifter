@@ -86,7 +86,7 @@
        ;; get the robots position
        [ri rj] (get-robot mm)
        ;; get value from position
-       [l r u d] (get-neighbors ri rj mm M N)
+       [u d l r] (get-neighbors ri rj mm M N)
        ]
     (print (print-map mm))
     (print [l r u d])))
