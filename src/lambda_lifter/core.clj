@@ -54,13 +54,13 @@
   (:robot (nth (filter 
                 #(match [%]
                         [{:robot _}] true
-                        [ {:rock  _}] false
-                        [ {:clift _}] false
-                        [ {:olift _}] false
-                        [ {:lambda _}] false
-                        [ {:earth _}] false
-                        [ {:space _}] false
-                        [ {:wall _}] false) (flatten mm)) 0)))
+                        [{:rock  _}] false
+                        [{:clift _}] false
+                        [{:olift _}] false
+                        [{:lambda _}] false
+                        [{:earth _}] false
+                        [{:space _}] false
+                        [{:wall _}] false) (flatten mm)) 0)))
 
 (defn- get-neighbors [i j mm M N]
   (let [vmm (mapv identity (flatten mm))]
