@@ -2,7 +2,6 @@
 ;;; Author: Avinash
 ;;; Wed Mar 26 19:33:08 NZDT 2014
 
-;;; TODO: add the movement function with the constraints
 ;;; TODO: add the AI that plays the game
 
 (ns lambda_lifter.core
@@ -62,6 +61,14 @@
                         [{:space _}] false
                         [{:wall _}] false) (flatten mm)) 0)))
 
+(defn- empty-earth-lambda-olambda? [pos]
+  (match [pos]
+         [{:space _}] true
+         [{:earth _}] true
+         [{:lambda _}] true
+         [{:olift _}] true
+         [_] false))
+
 (defn- get-neighbors [i j mm M N]
   (let [vmm (mapv identity (flatten mm))]
     [(cond 
@@ -78,15 +85,91 @@
       :else nil)
      ]))
 
+(defn- get-vneighbors [[i j] mm M N]
+  (get-neighbors i j mm M N)) 
+
+(defn- replace-if-necessary [replacements index eres M]
+  (let 
+      [res (filter #(match [%]
+                           [{:robot [x y]}] (= index (+(* x M)y))
+                           [{:space [x y]}] (= index (+(* x M)y))
+                           [{:rock [x y]}]  (= index (+(* x M)y))
+                           [_] false
+                           ) replacements)]
+    (if (and (not (nil? res)) (= (count res) 1)) (nth res 0)
+        eres
+        )))
+
+(defn- move-robot-on-map [mm M N _ replacements] 
+  (map-indexed
+   (fn [i l]
+     (map-indexed
+      (fn [j k] (replace-if-necessary replacements (+(* i M) j) k M))l))mm))
+
+(defn- move-robot [command mm M N]
+  (let [
+        [ri rj] (get-robot mm)
+        [u d l r] (get-neighbors ri rj mm M N)
+        ]
+    (match [command]
+           [:L] (cond 
+                 (empty-earth-lambda-olambda? l) (move-robot-on-map mm M N :L [{:space [ri rj]} {:robot (nth (vals l) 0)}])
+                 (not (nil? (:rock l)))
+                 (let [[_ _ lr _] (get-vneighbors (:rock l) mm M N)]
+                   (if (and (not (nil? lr)) (not (nil? (:space lr))))
+                     (move-robot-on-map mm M N :L [{:space [ri rj]} {:robot (nth (vals l) 0)}  {:rock (nth (vals lr) 0)}])
+                     mm))
+                 :else mm)
+           [:R] (cond 
+                 (empty-earth-lambda-olambda? r) (move-robot-on-map mm M N :R [{:space [ri rj]} {:robot (nth (vals r) 0)}])
+                 (not (nil? (:rock r)))
+                 (let [[_ _ _ rr] (get-vneighbors (:rock r) mm M N)]
+                   (if (and (not (nil? rr)) (not (nil? (:space rr))))
+                     (move-robot-on-map mm M N :R [{:space [ri rj]} {:robot (nth (vals r) 0)} {:rock (nth (vals rr) 0)}])
+                     mm))
+                 :else mm)
+           [:U] (cond 
+                 (empty-earth-lambda-olambda? u) (move-robot-on-map mm M N :U [{:space [ri rj]} {:robot (nth (vals u) 0)}])
+                 :else mm)
+           [:D] (cond 
+                 (empty-earth-lambda-olambda? d) (move-robot-on-map mm M N :D [{:space [ri rj]} {:robot (nth (vals d) 0)}])
+                 :else mm)
+           )))
+
+(defn- get-movement [ss]
+  (cond
+   (= (.toUpperCase ss) "L") :L
+   (= (.toUpperCase ss) "R") :R
+   (= (.toUpperCase ss) "U") :U
+   (= (.toUpperCase ss) "D") :D
+   :else nil))
+
+(defn- play [mm M N]
+  (do 
+    ;; first print the map for the player
+    (print (print-map mm))
+    ;; Then get the input from the player
+    (println "Please input a movement: ")
+    (println "Valid movements are: ")
+    (println "L/l: Move Robot (R) Left")
+    (println "R/r: Move Robot (R) Right")
+    (println "U/u: Move Robot (R) Up")
+    (println "D/d: Move Robot (R) Down ")
+    (print "> ")
+    (flush)
+    (let 
+        [
+         movement (get-movement (read-line))
+         ]
+      (cond
+       (not (nil? movement)) (recur (move-robot movement mm M N) M N)
+       :else (recur mm M N)
+       ))))
+
 (defn -main [& args]
   "the main function that plays the game"
   (let 
       [
        [M N mm] (consume-map (slurp (nth args 0))) 
-       ;; get the robots position
-       [ri rj] (get-robot mm)
-       ;; get value from position
-       [u d l r] (get-neighbors ri rj mm M N)
        ]
-    (print (print-map mm))
-    (print [l r u d])))
+    (do (play mm M N) (flush))))
