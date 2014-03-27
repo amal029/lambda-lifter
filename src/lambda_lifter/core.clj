@@ -63,7 +63,6 @@
 
 (defn- empty-earth-lambda-olambda? [pos]
   (do 
-    (println pos)
     (match [pos]
           [{:space _}] true
           [{:earth _}] true
@@ -73,7 +72,6 @@
 
 (defn- get-neighbors [i j mm M N]
   (let [vmm (mapv identity (flatten mm))
-        ;; _ (println vmm)
         ]
     [(cond 
       (>= (- i 1) 0) (vmm (+ (* (- i 1) N) j)) ;this is up 
@@ -104,17 +102,24 @@
         eres
         )))
 
-;;; Need to complete this one!
 (defn- update-map [mm M N]
   (let
-      [m (atom [])]
-    (map-indexed 
-     (fn [i l]
-       (map-indexed
-        (fn [j c]
+      [m (atom nil)]
+    (map
+     (fn [l]
+       (map
+        (fn [c]
           (match [c]
-                 [{:rock [x y]}] (let [[_ d _ _ ] (get-vneighbors x y mm M N)] (if (not (nil? (:empty d))) mm))
-                 ))l))mm)))
+                 [{:rock [x y]}] (let [[u d l r ] (get-neighbors x y mm M N)
+                                       [_ _ _ rr ] (get-neighbors (+ x 1) y mm M N)
+                                       ] 
+                                   (cond 
+                                    (not (nil? (:space d))) (do (swap! m conj {:rock [(+ x 1) y]}) {:space [x y]})
+                                    (and (not (nil? (:empty rr))) (not (nil? (:lambda r)))) (do (swap! m conj {:rock [(+ x 1) (+ y 1)]}) {:space [x y]})
+                                    :else c
+                                    ))
+                 [{:space [x y]}] (let [pp (replace-if-necessary @m (+ (* x N) y) c N)] (if (not (nil? pp)) pp c))
+                 [_] c))l))mm)))
 
 (defn- move-robot-on-map [mm M N _ replacements] 
   (map-indexed
@@ -126,12 +131,10 @@
   (let [
         [ri rj] (get-robot mm)
         [u d l r] (get-neighbors ri rj mm M N)
-        _ (println "robot: " ri rj)
-        _ (println "command: " command " neighbors: " u d l r)
         ]
     (match [command]
            [:L] (cond 
-                 (empty-earth-lambda-olambda? l) (do (println l) (move-robot-on-map mm M N :L [{:space [ri rj]} {:robot (nth (vals l) 0)}]))
+                 (empty-earth-lambda-olambda? l) (do (move-robot-on-map mm M N :L [{:space [ri rj]} {:robot (nth (vals l) 0)}]))
                  (not (nil? (:rock l)))
                  (let [[_ _ lr _] (get-vneighbors (:rock l) mm M N)]
                    (if (and (not (nil? lr)) (not (nil? (:space lr))))
@@ -180,7 +183,7 @@
          movement (get-movement (read-line))
          ]
       (cond
-       (not (nil? movement)) (recur (move-robot movement mm M N) M N)
+       (not (nil? movement)) (recur (update-map (move-robot movement mm M N) M N) M N)
        :else (recur mm M N)
        ))))
 
