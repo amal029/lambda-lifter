@@ -62,38 +62,42 @@
                         [{:wall _}] false) (flatten mm)) 0)))
 
 (defn- empty-earth-lambda-olambda? [pos]
-  (match [pos]
-         [{:space _}] true
-         [{:earth _}] true
-         [{:lambda _}] true
-         [{:olift _}] true
-         [_] false))
+  (do 
+    (println pos)
+    (match [pos]
+          [{:space _}] true
+          [{:earth _}] true
+          [{:lambda _}] true
+          [{:olift _}] true
+          [_] false)))
 
 (defn- get-neighbors [i j mm M N]
-  (let [vmm (mapv identity (flatten mm))]
+  (let [vmm (mapv identity (flatten mm))
+        ;; _ (println vmm)
+        ]
     [(cond 
-      (>= (- i 1) 0) (vmm (+ (* (- i 1) M) j)) ;this is up 
+      (>= (- i 1) 0) (vmm (+ (* (- i 1) N) j)) ;this is up 
       :else nil)
      (cond 
-      (<= (+ i 1) (- M 1)) (vmm (+ (* (+ i 1) M) j)) ;this is down 
+      (<= (+ i 1) (- M 1)) (vmm (+ (* (+ i 1) N) j)) ;this is down 
       :else nil) 
      (cond 
-      (>= (- j 1) 0) (vmm (+ (* i M) (- j 1))) ;this is left 
+      (>= (- j 1) 0) (vmm (+ (* i N) (- j 1))) ;this is left 
       :else nil) 
      (cond 
-      (<= (+ j 1) (- M 1)) (vmm (+ (* i M) (+ j 1))) ;this is right
+      (<= (+ j 1) (- N 1)) (vmm (+ (* i N) (+ j 1))) ;this is right
       :else nil)
      ]))
 
 (defn- get-vneighbors [[i j] mm M N]
   (get-neighbors i j mm M N)) 
 
-(defn- replace-if-necessary [replacements index eres M]
+(defn- replace-if-necessary [replacements index eres N]
   (let 
       [res (filter #(match [%]
-                           [{:robot [x y]}] (= index (+(* x M)y))
-                           [{:space [x y]}] (= index (+(* x M)y))
-                           [{:rock [x y]}]  (= index (+(* x M)y))
+                           [{:robot [x y]}] (= index (+(* x N)y))
+                           [{:space [x y]}] (= index (+(* x N)y))
+                           [{:rock [x y]}]  (= index (+(* x N)y))
                            [_] false
                            ) replacements)]
     (if (and (not (nil? res)) (= (count res) 1)) (nth res 0)
@@ -104,16 +108,18 @@
   (map-indexed
    (fn [i l]
      (map-indexed
-      (fn [j k] (replace-if-necessary replacements (+(* i M) j) k M))l))mm))
+      (fn [j k] (replace-if-necessary replacements (+(* i N) j) k N))l))mm))
 
 (defn- move-robot [command mm M N]
   (let [
         [ri rj] (get-robot mm)
         [u d l r] (get-neighbors ri rj mm M N)
+        _ (println "robot: " ri rj)
+        _ (println "command: " command " neighbors: " u d l r)
         ]
     (match [command]
            [:L] (cond 
-                 (empty-earth-lambda-olambda? l) (move-robot-on-map mm M N :L [{:space [ri rj]} {:robot (nth (vals l) 0)}])
+                 (empty-earth-lambda-olambda? l) (do (println l) (move-robot-on-map mm M N :L [{:space [ri rj]} {:robot (nth (vals l) 0)}]))
                  (not (nil? (:rock l)))
                  (let [[_ _ lr _] (get-vneighbors (:rock l) mm M N)]
                    (if (and (not (nil? lr)) (not (nil? (:space lr))))
