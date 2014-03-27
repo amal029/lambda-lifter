@@ -104,6 +104,18 @@
         eres
         )))
 
+;;; Need an atom or mutable type
+;;; Will complete map-update later
+;;; Just use the java array
+(defn- update-map [mm M N]
+  (map-indexed 
+   (fn [i l]
+     (map-indexed
+      (fn [j c]
+        (match [c]
+               [{:rock [x y]}] (let [[_ d _ _ ] (get-vneighbors x y mm M N)] (if (not (nil? (:empty d))) mm))
+               ))l))mm))
+
 (defn- move-robot-on-map [mm M N _ replacements] 
   (map-indexed
    (fn [i l]
