@@ -117,10 +117,10 @@
 (defn- reconstruct-path [cf goal mm M N]
   (let [[u d l r] (get-vneighbors (nth (vals (get cf goal) 0)) mm M N)]
     (cond
-     (= u goal) (cons :U (reconstruct-path cf u))
-     (= d goal) (cons :D (reconstruct-path cf d))
-     (= l goal) (cons :L (reconstruct-path cf l))
-     (= r goal) (cons :R (reconstruct-path cf r)))))
+     (= u goal) (cons :U (reconstruct-path cf u mm M N))
+     (= d goal) (cons :D (reconstruct-path cf d mm M N))
+     (= l goal) (cons :L (reconstruct-path cf l mm M N))
+     (= r goal) (cons :R (reconstruct-path cf r mm M N)))))
 
 (defn- sort-by-f [node1 node2]
   (let [nn1 (:f node1)
@@ -144,7 +144,7 @@
       (if-not (= mhm {})
         (let 
             [current (first mhm)]
-          (if (= current goal) (reconstruct-path cf goal)
+          (if (= current goal) (reconstruct-path cf goal mm M N)
               ;; this is the else part
               (let 
                   [nn (get-vneighbors (nth (vals current) 0) mm M N)]
