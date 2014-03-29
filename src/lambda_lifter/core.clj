@@ -2,8 +2,6 @@
 ;;; Author: Avinash
 ;;; Wed Mar 26 19:33:08 NZDT 2014
 
-;;; TODO: add the AI that plays the game
-
 (ns lambda_lifter.core
   (:gen-class))
 
@@ -13,6 +11,10 @@
 (require '[clojure.java.io :as io])
 (require '[clojure.contrib.str-utils2 :as s])
 
+;;; The hamming distance function 
+;;; will be used in the A* heuristic
+(defn- hamming-distance [[x1 y1] [x2 y2]]
+  (+ (Math/abs (- x2 x1)) (Math/abs (- y2 y1))))
 
 (defn- print-map [mm]
   (s/map-str
@@ -48,27 +50,48 @@
                             :else (throw (Throwable. (str "undefined character in the map: "  k)))
                             ))l)) lines)]))
 
+(defn- get-robot-node [mm]
+  (nth (filter 
+        #(match [%]
+                [{:robot _}] true
+                [{:rock  _}] false
+                [{:clift _}] false
+                [{:olift _}] false
+                [{:lambda _}] false
+                [{:earth _}] false
+                [{:space _}] false
+                [{:wall _}] false) (flatten mm)) 0))
+
 (defn- get-robot [mm]
   ;; Get the single robot!
-  (:robot (nth (filter 
-                #(match [%]
-                        [{:robot _}] true
-                        [{:rock  _}] false
-                        [{:clift _}] false
-                        [{:olift _}] false
-                        [{:lambda _}] false
-                        [{:earth _}] false
-                        [{:space _}] false
-                        [{:wall _}] false) (flatten mm)) 0)))
+  (:robot (get-robot-node mm)))
+
+(defn- heuristic-cost-estimate [node1 node2]
+  (let 
+      [nv1  (match [node1]
+                   [{:robot v}] v
+                   [{:rock  v}] v
+                   [{:clift v}] v
+                   [{:olift v}] v
+                   [{:lambda v}] v
+                   [{:earth v}] v
+                   [{:space v}] v
+                   [{:wall v}] v
+                   )
+       nv2 (match [node2]
+                  [{:lambda v}] v
+                  [_] (Throwable. (str "The goal cannot be anything but lambda, but found " node2))
+                  )
+       ] (hamming-distance nv1 nv2)))
 
 (defn- empty-earth-lambda-olambda? [pos]
   (do 
     (match [pos]
-          [{:space _}] true
-          [{:earth _}] true
-          [{:lambda _}] true
-          [{:olift _}] true
-          [_] false)))
+           [{:space _}] true
+           [{:earth _}] true
+           [{:lambda _}] true
+           [{:olift _}] true
+           [_] false)))
 
 (defn- get-neighbors [i j mm M N]
   (let [vmm (mapv identity (flatten mm))
@@ -89,6 +112,73 @@
 
 (defn- get-vneighbors [[i j] mm M N]
   (get-neighbors i j mm M N)) 
+
+;;; The path reconstruction after a*
+(defn- reconstruct-path [cf goal mm M N]
+  (let [[u d l r] (get-vneighbors (nth (vals (get cf goal) 0)) mm M N)]
+    (cond
+     (= u goal) (cons :U (reconstruct-path cf u))
+     (= d goal) (cons :D (reconstruct-path cf d))
+     (= l goal) (cons :L (reconstruct-path cf l))
+     (= r goal) (cons :R (reconstruct-path cf r)))))
+
+(defn- sort-by-f [node1 node2]
+  (let [nn1 (:f node1)
+        nn2 (:f node2)] (compare nn1 nn2)))
+
+;;; The A* path planning heuristic
+(defn- a* [start goal mm M N]
+  (let 
+      [closedset (hash-set)                ; the closed map of nodes
+       myhashmap (sorted-map-by sort-by-f start {:g 0 :f (heuristic-cost-estimate start goal)})
+       ;; openset (sorted-set-by (sort-by-f myhashmap start start) start) ; the starting node, the robot
+       came-from (hash-map)
+       ]
+    (loop 
+        [
+         cs closedset
+         mhm myhashmap
+         cf came-from
+         ]
+      ;; if the open-set is not empty then compute
+      (if-not (= mhm {})
+        (let 
+            [current (first mhm)]
+          (if (= current goal) (reconstruct-path cf goal)
+              ;; this is the else part
+              (let 
+                  [nn (get-vneighbors (nth (vals current) 0) mm M N)]
+                (loop
+                    [
+                     mhmm mhm
+                     cff cf
+                     count 0
+                     neighbor (nth nn count)
+                     ]
+                  ;; The (:rock condition) can be loosened later on to make more interesting AI
+                  (if (and (not (nil? neighbor)) (not (contains? cs neighbor)) (not (:wall neighbor)) (not (:rock neighbor)))
+                    (let [tg (+ (:g (get mhmm current)) 1)
+                          fn (+ tg (heuristic-cost-estimate neighbor goal))
+                          ioss (not (contains? mhmm neighbor))]
+                      ;; This is the internal recursion back to loop2
+                      (recur (if ioss (assoc mhmm neighbor {:g tg :f fn})) 
+                             (if ioss (assoc cff neighbor current)) (+ count 1) (nth nn (+ count 1)))
+                      )
+                    (if (< count 4) (recur mhmm cff (+ count 1) (nth nn (+ count 1))))
+                    )
+                  )
+                ;; This is the final call back to the loop
+                (recur (conj cs current) (disj mhm current) cf))))))))
+
+(defn- get-lambda-via-ai [mm M N]
+  (let 
+      [
+       lambdas (filter #(match [%] [{:lambda _}] %) (flatten mm))
+       sorted-lambdas (sort #(heuristic-cost-estimate (get-robot-node mm) %) lambdas)
+       ]
+    (a* (get-robot-node mm) (nth sorted-lambdas 0) mm M N)
+    ))
+
 
 (defn- replace-if-necessary [replacements index eres N]
   (let 
@@ -163,6 +253,7 @@
    (= (.toUpperCase ss) "R") :R
    (= (.toUpperCase ss) "U") :U
    (= (.toUpperCase ss) "D") :D
+   (= (.toUpperCase ss) "A") :A
    :else nil))
 
 (defn- play [mm M N]
@@ -176,6 +267,7 @@
     (println "R/r: Move Robot (R) Right")
     (println "U/u: Move Robot (R) Up")
     (println "D/d: Move Robot (R) Down ")
+    (println "A/a: Collect 1-lambda automatically ")
     (print "> ")
     (flush)
     (let 
@@ -183,7 +275,14 @@
          movement (get-movement (read-line))
          ]
       (cond
-       (not (nil? movement)) (recur (update-map (move-robot movement mm M N) M N) M N)
+       (not (or (nil? movement) (not (= movement :A)))) (recur (update-map (move-robot movement mm M N) M N) M N)
+       (not (or (nil? movement) (= movement :A))) 
+       (let 
+           [mmm (ref mm)
+            movements (get-lambda-via-ai mm M N)
+            ]
+         (map #(do (dosync (ref-set mmm (move-robot % @mmm M N)) (print-map @mmm) (Thread/sleep 600))) movements)
+         (recur @mmm M N))
        :else (recur mm M N)
        ))))
 
