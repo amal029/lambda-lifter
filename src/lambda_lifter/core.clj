@@ -120,7 +120,9 @@
      (= u goal) (cons :U (reconstruct-path cf u mm M N))
      (= d goal) (cons :D (reconstruct-path cf d mm M N))
      (= l goal) (cons :L (reconstruct-path cf l mm M N))
-     (= r goal) (cons :R (reconstruct-path cf r mm M N)))))
+     (= r goal) (cons :R (reconstruct-path cf r mm M N))
+     :else nil)))
+
 
 (defn- sort-by-f [node1 node2]
   (let [nn1 (:f node1)
