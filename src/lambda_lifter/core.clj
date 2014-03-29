@@ -275,8 +275,8 @@
          movement (get-movement (read-line))
          ]
       (cond
-       (not (or (nil? movement) (not (= movement :A)))) (recur (update-map (move-robot movement mm M N) M N) M N)
-       (not (or (nil? movement) (= movement :A))) 
+       (and (not (nil? movement)) (not (= movement :A))) (recur (update-map (move-robot movement mm M N) M N) M N)
+       (not (and (nil? movement) (= movement :A))) 
        (let 
            [mmm (ref mm)
             movements (get-lambda-via-ai mm M N)
