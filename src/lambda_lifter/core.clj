@@ -10,6 +10,7 @@
 (use '[clojure.core.match :only (match)])
 (require '[clojure.java.io :as io])
 (require '[clojure.contrib.str-utils2 :as s])
+(require '[clojure.core.typed :as ct])
 
 ;;; The hamming distance function 
 ;;; will be used in the A* heuristic
@@ -108,7 +109,7 @@
      :else nil)))
 
 (defn- get-lowest-f [hm]
-  ((first (sort-by (fn [[x y]] x) (map (fn [x y] [(:f y) x]) (keys hm) (vals hm))))1))
+   ((first (sort-by (fn [[x y]] x) (map (fn [x y] [(:f y) x]) (keys hm) (vals hm))))1))
 
 ;;; The A* path planning heuristic
 (defn- a* [start goal mm M N]
@@ -145,9 +146,11 @@
                           fn (+ tg (heuristic-cost-estimate neighbor goal))
                           ioss (nil? (get mhmm neighbor))]
                       ;; This is the internal recursion back to loop2
+                      (if ioss (reset! mhm (assoc mhmm neighbor {:g tg :f fn})))
+                      (if ioss (reset! cf (assoc cff neighbor current)))
                       (if (< count 3) 
-                        (recur (if ioss (reset! mhm (assoc mhmm neighbor {:g tg :f fn})) mhmm) 
-                               (if ioss (reset! cf (assoc cff neighbor current)) cff) (+ count 1) (nth nn (+ count 1)))))
+                        (recur (if ioss @mhm mhmm) 
+                               (if ioss @cf cff) (+ count 1) (nth nn (+ count 1)))))
                     (if (< count 3) (recur mhmm cff (+ count 1) (nth nn (+ count 1))))))
                 ;; This is the final call back to the loop
                 (reset! mhm (dissoc @mhm current))
@@ -263,7 +266,6 @@
        (let 
            [mmm (atom mm)
             movements (reverse (get-lambda-via-ai mm M N))
-            _ (println movements)
             ]
          (doall (map #(reset! mmm (move-robot % @mmm M N)) movements))
          (recur @mmm M N))
