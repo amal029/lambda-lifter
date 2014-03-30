@@ -115,68 +115,85 @@
 
 ;;; The path reconstruction after a*
 (defn- reconstruct-path [cf goal mm M N]
-  (let [[u d l r] (get-vneighbors (nth (vals (get cf goal) 0)) mm M N)]
+  (let [
+        ;; This is crappy code, but I am tired
+        [i j] (nth (vals (get cf goal)) 0)
+        k (if (nil? i) 0 i)
+        l (if (nil? j) 0 j)
+        [u d l r] (get-neighbors k l mm M N)]
     (cond
-     (= u goal) (cons :U (reconstruct-path cf u mm M N))
-     (= d goal) (cons :D (reconstruct-path cf d mm M N))
-     (= l goal) (cons :L (reconstruct-path cf l mm M N))
-     (= r goal) (cons :R (reconstruct-path cf r mm M N))
+     (= u goal) (cons :U (reconstruct-path cf (get cf goal) mm M N))
+     (= d goal) (cons :D (reconstruct-path cf (get cf goal) mm M N))
+     (= l goal) (cons :L (reconstruct-path cf (get cf goal) mm M N))
+     (= r goal) (cons :R (reconstruct-path cf (get cf goal) mm M N))
      :else nil)))
 
-
-(defn- sort-by-f [node1 node2]
-  (let [nn1 (:f node1)
-        nn2 (:f node2)] (compare nn1 nn2)))
+(defn- get-lowest-f [hm]
+  ((first (sort-by (fn [[x y]] x) (map (fn [x y] [(:f y) x]) (keys hm) (vals hm))))1))
 
 ;;; The A* path planning heuristic
 (defn- a* [start goal mm M N]
   (let 
-      [closedset (hash-set)                ; the closed map of nodes
-       myhashmap (sorted-map-by sort-by-f start {:g 0 :f (heuristic-cost-estimate start goal)})
-       ;; openset (sorted-set-by (sort-by-f myhashmap start start) start) ; the starting node, the robot
+      [closedset (hash-set)             ; the closed map of nodes
+       myhashmap (hash-map start {:g 0 :f (heuristic-cost-estimate start goal)})
        came-from (hash-map)
        ]
     (loop 
         [
          cs closedset
-         mhm myhashmap
-         cf came-from
+         mhm (atom myhashmap)
+         cf (atom came-from)
          ]
+      ;; (println "===========================")
+      ;; (println "cs: " cs)
+      ;; (println "mhm: " @mhm)
+      ;; (println "cf: " @cf)
+      ;; (println "mhm is empty? " (= @mhm {}))
+      ;; (println "===========================")
       ;; if the open-set is not empty then compute
-      (if-not (= mhm {})
+      (if-not (= @mhm {})
         (let 
-            [current (first mhm)]
-          (if (= current goal) (reconstruct-path cf goal mm M N)
+            ;; this just is the key!!
+            [current (get-lowest-f @mhm)]
+          (if (= current goal) (do (println @cf) (reconstruct-path @cf goal mm M N))
               ;; this is the else part
               (let 
-                  [nn (get-vneighbors (nth (vals current) 0) mm M N)]
+                  [nn (get-vneighbors (first (vals current)) mm M N)]
                 (loop
                     [
-                     mhmm mhm
-                     cff cf
+                     mhmm @mhm
+                     cff @cf
                      count 0
                      neighbor (nth nn count)
                      ]
+                  ;; (println "*********************")
+                  ;; (println "neighbor " neighbor)
+                  ;; (println "mhmm " mhmm)
+                  ;; (println "current " current)
+                  ;; (println "cff " cff)
+                  ;; (println "neighbor not in mhmm? " (nil? (get mhmm neighbor)))
+                  ;; (println "count " count)
+                  ;; (println "*********************")
                   ;; The (:rock condition) can be loosened later on to make more interesting AI
                   (if (and (not (nil? neighbor)) (not (contains? cs neighbor)) (not (:wall neighbor)) (not (:rock neighbor)))
                     (let [tg (+ (:g (get mhmm current)) 1)
                           fn (+ tg (heuristic-cost-estimate neighbor goal))
-                          ioss (not (contains? mhmm neighbor))]
+                          ioss (nil? (get mhmm neighbor))]
                       ;; This is the internal recursion back to loop2
-                      (recur (if ioss (assoc mhmm neighbor {:g tg :f fn})) 
-                             (if ioss (assoc cff neighbor current)) (+ count 1) (nth nn (+ count 1)))
-                      )
-                    (if (< count 4) (recur mhmm cff (+ count 1) (nth nn (+ count 1))))
-                    )
-                  )
+                      (if (< count 3) 
+                        (recur (if ioss (reset! mhm (assoc mhmm neighbor {:g tg :f fn})) mhmm) 
+                               (if ioss (reset! cf (assoc cff neighbor current)) cff) (+ count 1) (nth nn (+ count 1)))))
+                    (if (< count 3) (recur mhmm cff (+ count 1) (nth nn (+ count 1))))
+                    ))
                 ;; This is the final call back to the loop
-                (recur (conj cs current) (disj mhm current) cf))))))))
+                (reset! mhm (dissoc @mhm current))
+                (recur (conj cs current) mhm cf))))))))
 
 (defn- get-lambda-via-ai [mm M N]
   (let 
       [
-       lambdas (filter #(match [%] [{:lambda _}] %) (flatten mm))
-       sorted-lambdas (sort #(heuristic-cost-estimate (get-robot-node mm) %) lambdas)
+       lambdas (filter #(match [%] [{:lambda _}] true [_] false) (flatten mm))
+       sorted-lambdas (sort-by #(heuristic-cost-estimate (get-robot-node mm) %) lambdas)
        ]
     (a* (get-robot-node mm) (nth sorted-lambdas 0) mm M N)
     ))
@@ -280,10 +297,11 @@
        (and (not (nil? movement)) (not (= movement :A))) (recur (update-map (move-robot movement mm M N) M N) M N)
        (and (not (nil? movement)) (= movement :A)) 
        (let 
-           [mmm (ref mm)
-            movements (get-lambda-via-ai mm M N)
+           [mmm (atom mm)
+            movements (reverse (get-lambda-via-ai mm M N))
+            _ (println movements)
             ]
-         (map #(do (dosync (ref-set mmm (move-robot % @mmm M N)) (print-map @mmm) (Thread/sleep 600))) movements)
+         (doall (map #(reset! mmm (move-robot % @mmm M N)) movements))
          (recur @mmm M N))
        :else (recur mm M N)
        ))))
