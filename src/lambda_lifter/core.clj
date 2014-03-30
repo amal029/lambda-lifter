@@ -67,22 +67,8 @@
   (:robot (get-robot-node mm)))
 
 (defn- heuristic-cost-estimate [node1 node2]
-  (let 
-      [nv1  (match [node1]
-                   [{:robot v}] v
-                   [{:rock  v}] v
-                   [{:clift v}] v
-                   [{:olift v}] v
-                   [{:lambda v}] v
-                   [{:earth v}] v
-                   [{:space v}] v
-                   [{:wall v}] v
-                   )
-       nv2 (match [node2]
-                  [{:lambda v}] v
-                  [_] (Throwable. (str "The goal cannot be anything but lambda, but found " node2))
-                  )
-       ] (hamming-distance nv1 nv2)))
+  ;; Change this call when doing a different type of map
+  (hamming-distance (first (vals node1)) (first (vals node2))))
 
 (defn- empty-earth-lambda-olambda? [pos]
   (do 
