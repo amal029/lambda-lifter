@@ -51,16 +51,10 @@
                             ))l)) lines)]))
 
 (defn- get-robot-node [mm]
-  (nth (filter 
-        #(match [%]
-                [{:robot _}] true
-                [{:rock  _}] false
-                [{:clift _}] false
-                [{:olift _}] false
-                [{:lambda _}] false
-                [{:earth _}] false
-                [{:space _}] false
-                [{:wall _}] false) (flatten mm)) 0))
+  (first (filter 
+          #(match [%]
+                  [{:robot _}] true
+                  [_] false) (flatten mm))))
 
 (defn- get-robot [mm]
   ;; Get the single robot!
@@ -104,8 +98,7 @@
   (let [
         ;; This is crappy code, but I am tired
         [i j] (nth (vals (get cf goal)) 0)
-        k (if (nil? i) 0 i)
-        l (if (nil? j) 0 j)
+        [k l] (if (and (nil? i) (nil? j)) [0 0] [i j])
         [u d l r] (get-neighbors k l mm M N)]
     (cond
      (= u goal) (cons :U (reconstruct-path cf (get cf goal) mm M N))
@@ -274,8 +267,7 @@
             ]
          (doall (map #(reset! mmm (move-robot % @mmm M N)) movements))
          (recur @mmm M N))
-       :else (recur mm M N)
-       ))))
+       :else (recur mm M N)))))
 
 (defn -main [& args]
   "the main function that plays the game"
