@@ -31,7 +31,9 @@
 (def image-width (.getWidth wall))
 (def image-height (.getHeight wall))
 
-(defn paint-map [g mm]
+(def inter-map (ref nil))
+
+(defn paint-map [g]
   (doall 
    (map
     (fn [line] 
@@ -44,7 +46,7 @@
                       [{:lambda [x y]}] (.drawImage g lambda (* y image-width) (* x image-height) nil)
                       [{:earth [x y]}] (.drawImage g earth (* y image-width) (* x image-height) nil)
                       [{:space [x y]}] (.drawImage g space (* y image-width) (* x image-height) nil)
-                      [{:wall [x y]}] (.drawImage g wall (* y image-width) (* x image-height) nil))line)))mm)))
+                      [{:wall [x y]}] (.drawImage g wall (* y image-width) (* x image-height) nil))line)))@inter-map)))
 
 ;;; The hamming distance function 
 ;;; will be used in the A* heuristic
@@ -143,7 +145,7 @@
      :else nil)))
 
 (defn- get-lowest-f [hm]
-   ((first (sort-by (fn [[x y]] x) (map (fn [x y] [(:f y) x]) (keys hm) (vals hm))))1))
+  ((first (sort-by (fn [[x y]] x) (map (fn [x y] [(:f y) x]) (keys hm) (vals hm))))1))
 
 ;;; The A* path planning heuristic
 (defn- a* [start goal mm M N]
@@ -279,7 +281,9 @@
 (defn- play [mm M N root]
   (do 
     ;; first print the map for the player
-    (repaint! (select root [:#canvas]))
+    ;; FIXME: why this does not work without gloabl ref is a question!
+    (dosync (ref-set inter-map mm))
+    (repaint! (select root [:#cc]))
     (print (print-map mm))
     ;; Then get the input from the player
     (println "Please input a movement: ")
@@ -306,21 +310,18 @@
          (recur @mmm M N root))
        :else (recur mm M N root)))))
 
-
-
-
 (defn -main [& args]
   "the main function that plays the game"
   (let 
       [
        [M N mm] (consume-map (slurp (nth args 0)))
-       ;; _ (println (paint-map nil mm))
+       _ (dosync (ref-set inter-map mm))
        f (frame  :title "Hello, World!" :resizable? false 
                  :width (* N image-width) :height (* M image-height) 
                  :on-close :hide
                  :content (border-panel :id :b :border 5 :hgap 5 :vgap 5 
-                                        :center (canvas :background "#BBBBDD" :visible? true :id :canvas 
-                                                        :paint  #(paint-map %2 mm))))
+                                        :center (canvas :background "#BBBBDD" :visible? true :id :cc 
+                                                        :paint  #(paint-map %2))))
        ]
     (show! f)
     (play mm M N f) (flush)))
