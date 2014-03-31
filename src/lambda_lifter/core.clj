@@ -5,12 +5,46 @@
 (ns lambda_lifter.core
   (:gen-class))
 
-
 (use 'com.phansen.clojure.adt.core)
 (use '[clojure.core.match :only (match)])
 (require '[clojure.java.io :as io])
 (require '[clojure.contrib.str-utils2 :as s])
 (require '[clojure.core.typed :as ct])
+(use 'seesaw.core)
+(use 'seesaw.graphics)
+(import 'java.awt.image.BufferedImage)
+
+;;; native look and feel
+(native!)
+
+;;; Some global definitions
+;;; These need to be converted to relative paths
+(def robot (javax.imageio.ImageIO/read (java.io.File. "images/robot.jpg")))
+(def rock (javax.imageio.ImageIO/read (java.io.File. "images/rock.jpg")))
+(def clift (javax.imageio.ImageIO/read (java.io.File. "images/clift.jpg")))
+(def olift (javax.imageio.ImageIO/read (java.io.File. "images/olift.jpg")))
+(def lambda (javax.imageio.ImageIO/read (java.io.File. "images/lambda.jpg")))
+(def space (javax.imageio.ImageIO/read (java.io.File. "images/space.jpg")))
+(def wall (javax.imageio.ImageIO/read (java.io.File. "images/wall.jpg")))
+(def earth (javax.imageio.ImageIO/read (java.io.File. "images/earth.jpg")))
+
+(def image-width (.getWidth wall))
+(def image-height (.getHeight wall))
+
+(defn paint-map [g mm]
+  (doall 
+   (map
+    (fn [line] 
+      (doall (map
+              #(match [%]
+                      [{:robot [x y]}] (.drawImage g robot (* y image-width) (* x image-height) nil)
+                      [{:rock  [x y]}] (.drawImage g rock (* y image-width) (* x image-height) nil)
+                      [{:clift [x y]}] (.drawImage g clift (* y image-width) (* x image-height) nil)
+                      [{:olift [x y]}] (.drawImage g olift (* y image-width) (* x image-height) nil)
+                      [{:lambda [x y]}] (.drawImage g lambda (* y image-width) (* x image-height) nil)
+                      [{:earth [x y]}] (.drawImage g earth (* y image-width) (* x image-height) nil)
+                      [{:space [x y]}] (.drawImage g space (* y image-width) (* x image-height) nil)
+                      [{:wall [x y]}] (.drawImage g wall (* y image-width) (* x image-height) nil))line)))mm)))
 
 ;;; The hamming distance function 
 ;;; will be used in the A* heuristic
@@ -242,9 +276,10 @@
    (= (.toUpperCase ss) "A") :A
    :else nil))
 
-(defn- play [mm M N]
+(defn- play [mm M N root]
   (do 
     ;; first print the map for the player
+    (repaint! (select root [:#canvas]))
     (print (print-map mm))
     ;; Then get the input from the player
     (println "Please input a movement: ")
@@ -261,20 +296,31 @@
          movement (get-movement (read-line))
          ]
       (cond
-       (and (not (nil? movement)) (not (= movement :A))) (recur (update-map (move-robot movement mm M N) M N) M N)
+       (and (not (nil? movement)) (not (= movement :A))) (recur (update-map (move-robot movement mm M N) M N) M N root)
        (and (not (nil? movement)) (= movement :A)) 
        (let 
            [mmm (atom mm)
             movements (reverse (get-lambda-via-ai mm M N))
             ]
          (doall (map #(reset! mmm (move-robot % @mmm M N)) movements))
-         (recur @mmm M N))
-       :else (recur mm M N)))))
+         (recur @mmm M N root))
+       :else (recur mm M N root)))))
+
+
+
 
 (defn -main [& args]
   "the main function that plays the game"
   (let 
       [
-       [M N mm] (consume-map (slurp (nth args 0))) 
+       [M N mm] (consume-map (slurp (nth args 0)))
+       ;; _ (println (paint-map nil mm))
+       f (frame  :title "Hello, World!" :resizable? false 
+                 :width (* N image-width) :height (* M image-height) 
+                 :on-close :hide
+                 :content (border-panel :id :b :border 5 :hgap 5 :vgap 5 
+                                        :center (canvas :background "#BBBBDD" :visible? true :id :canvas 
+                                                        :paint  #(paint-map %2 mm))))
        ]
-    (do (play mm M N) (flush))))
+    (show! f)
+    (play mm M N f) (flush)))
