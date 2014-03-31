@@ -269,59 +269,38 @@
                  :else mm)
            )))
 
-(defn- get-movement [ss]
-  (cond
-   (= (.toUpperCase ss) "L") :L
-   (= (.toUpperCase ss) "R") :R
-   (= (.toUpperCase ss) "U") :U
-   (= (.toUpperCase ss) "D") :D
-   (= (.toUpperCase ss) "A") :A
-   :else nil))
-
-(defn- play [mm M N root]
+(defn- play [M N movement]
   (do 
-    ;; first print the map for the player
-    ;; FIXME: why this does not work without gloabl ref is a question!
-    (dosync (ref-set inter-map mm))
-    (repaint! (select root [:#cc]))
-    (print (print-map mm))
-    ;; Then get the input from the player
-    (println "Please input a movement: ")
-    (println "Valid movements are: ")
-    (println "L/l: Move Robot (R) Left")
-    (println "R/r: Move Robot (R) Right")
-    (println "U/u: Move Robot (R) Up")
-    (println "D/d: Move Robot (R) Down ")
-    (println "A/a: Collect 1-lambda automatically ")
-    (print "> ")
-    (flush)
-    (let 
-        [
-         movement (get-movement (read-line))
-         ]
-      (cond
-       (and (not (nil? movement)) (not (= movement :A))) (recur (update-map (move-robot movement mm M N) M N) M N root)
-       (and (not (nil? movement)) (= movement :A)) 
-       (let 
-           [mmm (atom mm)
-            movements (reverse (get-lambda-via-ai mm M N))
-            ]
-         (doall (map #(reset! mmm (move-robot % @mmm M N)) movements))
-         (recur @mmm M N root))
-       :else (recur mm M N root)))))
+    (cond
+     (and (not (nil? movement)) (not (= movement :A))) (dosync (ref-set inter-map (update-map (move-robot movement @inter-map M N) M N)))
+     (and (not (nil? movement)) (= movement :A)) 
+     (let 
+         [mmm (atom @inter-map)
+          movements (reverse (get-lambda-via-ai @inter-map M N))
+          ]
+       (doall (map #(reset! mmm (update-map (move-robot % @mmm M N) M N)) movements))
+       (dosync (ref-set inter-map @mmm))))))
 
 (defn -main [& args]
   "the main function that plays the game"
   (let 
-      [
-       [M N mm] (consume-map (slurp (nth args 0)))
+      [[M N mm] (consume-map (slurp (nth args 0)))
        _ (dosync (ref-set inter-map mm))
-       f (frame  :title "Hello, World!" :resizable? false 
+       c (canvas :background "#BBBBDD" :visible? true :id :cc :paint  #(paint-map %2))
+       f (frame  :title "Lambda lifter" :resizable? false 
                  :width (* N image-width) :height (* M image-height) 
-                 :on-close :hide
+                 :on-close :exit
                  :content (border-panel :id :b :border 5 :hgap 5 :vgap 5 
-                                        :center (canvas :background "#BBBBDD" :visible? true :id :cc 
-                                                        :paint  #(paint-map %2))))
-       ]
-    (show! f)
-    (play mm M N f) (flush)))
+                                        :center c))
+       _ (listen f :key-typed #(let 
+                                   [k (.getKeyChar %)
+                                    movement (cond 
+                                              (= k \a) :A
+                                              (= k \l) :L
+                                              (= k \u) :U
+                                              (= k \d) :D
+                                              (= k \r) :R
+                                              :else nil)] 
+                                 (play M N movement) 
+                                 (repaint! c)))]
+    (show! f) (flush)))
