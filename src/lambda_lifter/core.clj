@@ -157,40 +157,29 @@
     (loop 
         [
          cs closedset
-         mhm (atom myhashmap)
-         cf (atom came-from)
+         mhm myhashmap
+         cf came-from
          ]
       ;; if the open-set is not empty then compute
-      (if-not (= @mhm {})
+      (if-not (= mhm {})
         (let 
             ;; this just is the key!!
-            [current (get-lowest-f @mhm)]
-          (if (= current goal) (reconstruct-path @cf goal mm M N)
+            [current (get-lowest-f mhm)]
+          (if (= current goal) (reconstruct-path cf goal mm M N)
               ;; this is the else part
               (let 
-                  [nn (get-vneighbors (first (vals current)) mm M N)]
-                (loop
-                    [
-                     mhmm @mhm
-                     cff @cf
-                     count 0
-                     neighbor (nth nn count)
-                     ]
-                  ;; The (:rock condition) can be loosened later on to make more interesting AI
-                  (if (and (not (nil? neighbor)) (not (contains? cs neighbor)) (not (:wall neighbor)) (not (:rock neighbor)))
-                    (let [tg (+ (:g (get mhmm current)) 1)
-                          fn (+ tg (heuristic-cost-estimate neighbor goal))
-                          ioss (nil? (get mhmm neighbor))]
-                      ;; This is the internal recursion back to loop2
-                      (if ioss (reset! mhm (assoc mhmm neighbor {:g tg :f fn})))
-                      (if ioss (reset! cf (assoc cff neighbor current)))
-                      (if (< count 3) 
-                        (recur (if ioss @mhm mhmm) 
-                               (if ioss @cf cff) (+ count 1) (nth nn (+ count 1)))))
-                    (if (< count 3) (recur mhmm cff (+ count 1) (nth nn (+ count 1))))))
+                  [nn (get-vneighbors (first (vals current)) mm M N)
+                   [vmhmm vcff] (reduce 
+                               (fn [[mhmm cff] neighbor]
+                                 (if (and (not (nil? neighbor)) (not (contains? cs neighbor)) (not (:wall neighbor)) (not (:rock neighbor)))
+                                   (let [tg (+ (:g (get mhmm current)) 1)
+                                         fn (+ tg (heuristic-cost-estimate neighbor goal))
+                                         ioss (nil? (get mhmm neighbor))]
+                                     (cond ioss [(assoc mhmm neighbor {:g tg :f fn}) (assoc cff neighbor current)]
+                                           :else [mhm cff]))
+                                   [mhmm cff])) [mhm cf] nn)]
                 ;; This is the final call back to the loop
-                (reset! mhm (dissoc @mhm current))
-                (recur (conj cs current) mhm cf))))))))
+                (recur (conj cs current) (dissoc vmhmm current) vcff))))))))
 
 (defn- get-lambda-via-ai [mm M N]
   (let 
