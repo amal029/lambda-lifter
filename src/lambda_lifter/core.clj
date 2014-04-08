@@ -154,10 +154,9 @@
                                (fn [[mhmm cff] neighbor]
                                  (if (and (not (nil? neighbor)) (not (contains? cs neighbor)) (not (:wall neighbor)) (not (:rock neighbor)))
                                    (let [tg (+ (:g (get mhmm current)) 1)
-                                         fn (+ tg (heuristic-cost-estimate neighbor goal))
-                                         ioss (nil? (get mhmm neighbor))]
-                                     (cond ioss [(assoc mhmm neighbor {:g tg :f fn}) (assoc cff neighbor current)]
-                                           :else [mhm cff]))
+                                         fn (+ tg (heuristic-cost-estimate neighbor goal))]
+                                     (cond (nil? (get mhmm neighbor)) [(assoc mhmm neighbor {:g tg :f fn}) (assoc cff neighbor current)]
+                                           :else [mhmm cff]))
                                    [mhmm cff])) [mhm cf] nn)]
               ;; This is the final call back to the loop
               (recur (conj cs current) (dissoc vmhmm current) vcff)))))))
