@@ -135,27 +135,22 @@
 
 ;;; The A* path planning heuristic
 (defn- a* [start goal mm M N]
-  (let 
-      [closedset (hash-set)             ; the closed map of nodes
-       myhashmap (hash-map start {:g 0 :f (heuristic-cost-estimate start goal)})
-       came-from (hash-map)
+  (loop 
+      [
+       cs (hash-set)             ; the closed map of nodes
+       mhm (hash-map start {:g 0 :f (heuristic-cost-estimate start goal)})
+       cf (hash-map)
        ]
-    (loop 
-        [
-         cs closedset
-         mhm myhashmap
-         cf came-from
-         ]
-      ;; if the open-set is not empty then compute
-      (if-not (= mhm {})
-        (let 
-            ;; this just is the key!!
-            [current (get-lowest-f mhm)]
-          (if (= current goal) (reconstruct-path cf goal mm M N)
-              ;; this is the else part
-              (let 
-                  [nn (get-vneighbors (first (vals current)) mm M N)
-                   [vmhmm vcff] (reduce 
+    ;; if the open-set is not empty then compute
+    (if-not (= mhm {})
+      (let 
+          ;; this just is the key!!
+          [current (get-lowest-f mhm)]
+        (if (= current goal) (reconstruct-path cf goal mm M N)
+            ;; this is the else part
+            (let 
+                [nn (get-vneighbors (first (vals current)) mm M N)
+                 [vmhmm vcff] (reduce 
                                (fn [[mhmm cff] neighbor]
                                  (if (and (not (nil? neighbor)) (not (contains? cs neighbor)) (not (:wall neighbor)) (not (:rock neighbor)))
                                    (let [tg (+ (:g (get mhmm current)) 1)
@@ -164,8 +159,8 @@
                                      (cond ioss [(assoc mhmm neighbor {:g tg :f fn}) (assoc cff neighbor current)]
                                            :else [mhm cff]))
                                    [mhmm cff])) [mhm cf] nn)]
-                ;; This is the final call back to the loop
-                (recur (conj cs current) (dissoc vmhmm current) vcff))))))))
+              ;; This is the final call back to the loop
+              (recur (conj cs current) (dissoc vmhmm current) vcff)))))))
 
 (defn- get-lambda-via-ai [mm M N]
   (let 
