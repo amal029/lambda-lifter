@@ -180,8 +180,7 @@
                            [_] false
                            ) replacements)]
     (if (and (not (nil? res)) (= (count res) 1)) (nth res 0)
-        eres
-        )))
+        eres)))
 
 (defn- update-map [mm M N]
   (let
@@ -244,11 +243,8 @@
      (and (not (nil? movement)) (not (= movement :A))) (dosync (ref-set inter-map (update-map (move-robot movement @inter-map M N) M N)))
      (and (not (nil? movement)) (= movement :A)) 
      (let 
-         [mmm (atom @inter-map)
-          movements (reverse (get-lambda-via-ai @inter-map M N))
-          ]
-       (doall (map #(reset! mmm (update-map (move-robot % @mmm M N) M N)) movements))
-       (dosync (ref-set inter-map @mmm))))))
+         [movements (reverse (get-lambda-via-ai @inter-map M N))]
+       (doall (map #(play M N %) movements))))))
 
 (defn -main [& args]
   "the main function that plays the game"
