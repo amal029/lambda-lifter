@@ -167,8 +167,7 @@
        lambdas (filter #(match [%] [{:lambda _}] true [_] false) (flatten mm))
        sorted-lambdas (sort-by #(heuristic-cost-estimate (get-robot-node mm) %) lambdas)
        ]
-    (a* (get-robot-node mm) (nth sorted-lambdas 0) mm M N)
-    ))
+    (a* (get-robot-node mm) (nth sorted-lambdas 0) mm M N)))
 
 
 (defn- replace-if-necessary [replacements index eres N]
@@ -234,17 +233,16 @@
                  :else mm)
            [:D] (cond 
                  (empty-earth-lambda-olambda? d) (move-robot-on-map mm M N :D [{:space [ri rj]} {:robot (nth (vals d) 0)}])
-                 :else mm)
-           )))
+                 :else mm))))
 
-(defn- play [M N movement]
+(defn- play [M N movement canvas]
   (do 
     (cond
      (and (not (nil? movement)) (not (= movement :A))) (dosync (ref-set inter-map (update-map (move-robot movement @inter-map M N) M N)))
      (and (not (nil? movement)) (= movement :A)) 
      (let 
          [movements (reverse (get-lambda-via-ai @inter-map M N))]
-       (doall (map #(play M N %) movements))))))
+       (doall (map #(do (play M N % canvas) (.paintImmediately canvas (.getBounds canvas nil)) (Thread/sleep 300)) movements))))))
 
 (defn -main [& args]
   "the main function that plays the game"
@@ -266,6 +264,6 @@
                                               (= k \d) :D
                                               (= k \r) :R
                                               :else nil)] 
-                                 (play M N movement) 
+                                 (play M N movement c) 
                                  (repaint! c)))]
     (show! f) (flush)))
