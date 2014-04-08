@@ -53,20 +53,6 @@
 (defn- hamming-distance [[x1 y1] [x2 y2]]
   (+ (Math/abs (- x2 x1)) (Math/abs (- y2 y1))))
 
-(defn- print-map [mm]
-  (s/map-str
-   (fn [line] 
-     (str (s/map-str
-           #(match [%]
-                   [{:robot _}] "R"
-                   [{:rock  _}] "*"
-                   [{:clift _}] "L"
-                   [{:olift _}] "O"
-                   [{:lambda _}] "\\"
-                   [{:earth _}] "."
-                   [{:space _}] " "
-                   [{:wall _}] "#") line) "\n"))mm))
-
 (defn- consume-map [map]
   (let 
       [lines (clojure.string/split-lines map)
