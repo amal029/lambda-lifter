@@ -4,7 +4,7 @@ The game from ICFP'2012 programming contest
 
 ## Usage
 
-FIXME: The game is working.
+The game is working.
 
 ### Used keys: 
 * "r" : right
