@@ -242,7 +242,7 @@
      (and (not (nil? movement)) (= movement :A)) 
      (let 
          [movements (reverse (get-lambda-via-ai @inter-map M N))]
-       (doall (map #(do (play M N % canvas) (.paintImmediately canvas (.getBounds canvas nil)) (Thread/sleep 300)) movements))))))
+       (doall (map #(do (play M N % canvas) (.paintImmediately canvas (.getBounds canvas nil)) (Thread/sleep 5)) movements))))))
 
 (defn -main [& args]
   "the main function that plays the game"
